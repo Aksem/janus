@@ -5,7 +5,7 @@ from asyncio import QueueEmpty as AsyncQueueEmpty
 from asyncio import QueueFull as AsyncQueueFull
 from collections import deque
 from heapq import heappop, heappush
-from queue import Empty as SyncQueueEmpty
+from queue import Empty as SyncQueueEmpty, Queue as StdSyncQueue
 from queue import Full as SyncQueueFull
 from typing import Any, Callable, Deque, Generic, List, Optional, Set, TypeVar
 
@@ -240,10 +240,14 @@ class Queue(Generic[T]):
             raise RuntimeError("Operation on the closed queue is forbidden")
 
 
-class _SyncQueueProxy(SyncQueue[T]):
+class _SyncQueueProxy(StdSyncQueue[T]):
     """Create a queue object with a given maximum size.
 
     If maxsize is <= 0, the queue size is infinite.
+    
+    This class doesn't use functionality from its base class queue.Queue, but it is needed to allow
+    to use janus sync queue as in-place replacement of standard queue and pass
+    `isinstance(obj, queue.Queue) check.`
     """
 
     def __init__(self, parent: Queue[T]):
@@ -252,6 +256,10 @@ class _SyncQueueProxy(SyncQueue[T]):
     @property
     def maxsize(self) -> int:
         return self._parent._maxsize
+    
+    @maxsize.setter
+    def maxsize(self, value: int) -> None:
+        self._parent._maxsize = value
 
     @property
     def closed(self) -> bool:
@@ -304,6 +312,10 @@ class _SyncQueueProxy(SyncQueue[T]):
     def unfinished_tasks(self) -> int:
         """Return the number of unfinished tasks."""
         return self._parent._unfinished_tasks
+    
+    @unfinished_tasks.setter
+    def unfinished_tasks(self, value: int) -> None:
+        self._parent._unfinished_tasks = value
 
     def empty(self) -> bool:
         """Return True if the queue is empty, False otherwise (not reliable!).
